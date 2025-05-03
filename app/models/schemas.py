@@ -6,3 +6,10 @@ class QueryRequest(BaseModel):
 
 class QueryResponse(BaseModel):
     answer: str
+    
+class SyncRequest(BaseModel):
+    sheet_url: HttpUrl
+
+class SyncResponse(BaseModel):
+    columns: list[str]
+    row_count: int
