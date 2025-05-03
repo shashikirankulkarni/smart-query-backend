@@ -7,3 +7,5 @@ services:
     envVars:
       - key: COHERE_API_KEY
         sync: false
+      - key: BEARER_TOKEN
+        sync: false
