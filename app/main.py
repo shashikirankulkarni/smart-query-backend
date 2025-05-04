@@ -1,9 +1,20 @@
 from fastapi import FastAPI
-from app.api.endpoints import router as api_router
 from fastapi.openapi.utils import get_openapi
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.endpoints import router as api_router
 
 app = FastAPI(title="Smart Query API")
 
+#Add CORS middleware configuration here
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # or use ["*"] during development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+#Customize OpenAPI schema with Bearer auth
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
