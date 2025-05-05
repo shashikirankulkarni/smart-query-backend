@@ -7,7 +7,7 @@ from app.services.sync_service import sync_sheet
 
 router = APIRouter()
 
-@router.get("/health", dependencies=[Depends(verify_token)])
+@router.get("/health")
 def health_check():
     return {"status": "ok"}
 
