@@ -7,7 +7,7 @@ from google.oauth2 import service_account
 GA4_PROPERTY_ID = os.getenv("GA4_PROPERTY_ID")
 
 # Local path to the JSON service account key file
-KEY_FILE_PATH = "app/secrets/argon-ability-459105-d3-87e87cde59a1.json"
+KEY_FILE_PATH = "/etc/secrets/argon-ability-459105-d3-87e87cde59a1.json"
 
 def get_total_visits() -> int:
     if not GA4_PROPERTY_ID:
