@@ -4,9 +4,18 @@ from app.services.query_service import process_query
 from fastapi import Depends
 from app.auth.dependencies import verify_token
 from app.services.sync_service import sync_sheet
+from app.services.visit_service import get_total_visits
 
 router = APIRouter()
 
+@router.get("/visits")
+def fetch_visits():
+    try:
+        visits = get_total_visits()
+        return {"visits": visits}
+    except Exception as e:
+        return {"error": str(e)}
+    
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
