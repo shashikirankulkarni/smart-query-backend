@@ -1,30 +1,18 @@
-
-import os
 import pandas as pd
 import requests
-import numpy as np
 from io import BytesIO
-from sentence_transformers import SentenceTransformer
 from app.models.schemas import SyncResponse
-from app.state.cache import synced_urls, sheet_cache, embedding_cache
+from app.state.cache import synced_urls
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-def sync_sheet(sheet_url: str) -> SyncResponse:
+def sync_sheet(sheet_url) -> SyncResponse:
     sheet_url = str(sheet_url)
-
-    # Clear old cache to save memory
-    synced_urls.clear()
-    sheet_cache.clear()
-    embedding_cache.clear()
-
     try:
         if "docs.google.com/spreadsheets" in sheet_url:
             file_id = sheet_url.split("/d/")[1].split("/")[0]
             csv_url = f"https://docs.google.com/spreadsheets/d/{file_id}/export?format=csv"
-            df = pd.read_csv(BytesIO(requests.get(csv_url).content), usecols=["Question", "Answer"])
+            df = pd.read_csv(BytesIO(requests.get(csv_url).content))
         elif sheet_url.endswith(".csv"):
-            df = pd.read_csv(BytesIO(requests.get(sheet_url).content), usecols=["Question", "Answer"])
+            df = pd.read_csv(BytesIO(requests.get(sheet_url).content))
         else:
             if "drive.google.com" in sheet_url and "uc?export=download" not in sheet_url:
                 file_id = sheet_url.split("/d/")[1].split("/")[0]
@@ -33,20 +21,12 @@ def sync_sheet(sheet_url: str) -> SyncResponse:
                 sheet_url = sheet_url.replace("?dl=0", "?dl=1")
             response = requests.get(sheet_url, timeout=15)
             response.raise_for_status()
-            df = pd.read_excel(BytesIO(response.content), engine="openpyxl", usecols=["Question", "Answer"])
+            df = pd.read_excel(BytesIO(response.content), engine="openpyxl")
 
-        # Truncate if too large
-        if len(df) > 5000:
-            df = df.iloc[:5000]
-
-        # Generate embeddings as NumPy arrays
-        embeddings = embedder.encode(df["Question"].tolist(), convert_to_numpy=True)
-
-        # Cache both DataFrame and embeddings
-        sheet_cache[sheet_url] = df
-        embedding_cache[sheet_url] = embeddings
+        #Cache the synced URL
         synced_urls.add(sheet_url)
 
         return SyncResponse(columns=df.columns.tolist(), row_count=len(df))
+
     except Exception as e:
         raise ValueError(f"Failed to load sheet: {e}")
