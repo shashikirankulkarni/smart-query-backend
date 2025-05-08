@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 from io import BytesIO
 from app.models.schemas import SyncResponse
-from app.state.cache import synced_urls, sheet_cache
+from app.state.cache import synced_urls, sheet_cache, embedding_cache
 from sentence_transformers import SentenceTransformer
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -13,6 +13,7 @@ def sync_sheet(sheet_url: str) -> SyncResponse:
     # Clear previous cache to reduce memory usage
     synced_urls.clear()
     sheet_cache.clear()
+    embedding_cache.clear()
 
     try:
         if "docs.google.com/spreadsheets" in sheet_url:
@@ -31,9 +32,10 @@ def sync_sheet(sheet_url: str) -> SyncResponse:
             response.raise_for_status()
             df = pd.read_excel(BytesIO(response.content), engine="openpyxl", usecols=["Question", "Answer"])
 
-        # Cache the DataFrame and its embeddings
+        # Cache sheet and embeddings separately
         question_embeddings = embedder.encode(df["Question"].tolist(), convert_to_tensor=True)
-        sheet_cache[sheet_url] = (df, question_embeddings)
+        sheet_cache[sheet_url] = df
+        embedding_cache[sheet_url] = question_embeddings
         synced_urls.add(sheet_url)
 
         return SyncResponse(columns=df.columns.tolist(), row_count=len(df))

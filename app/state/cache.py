@@ -1,3 +1,4 @@
-# Keep only one active sheet in memory
-sheet_cache = {}  # Key: sheet_url, Value: (DataFrame, Embeddings)
+# app/state/cache.py
 synced_urls = set()
+sheet_cache = {}  # sheet_url => DataFrame
+embedding_cache = {}  # sheet_url => list of embeddings
