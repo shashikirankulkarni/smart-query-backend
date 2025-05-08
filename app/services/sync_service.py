@@ -1,16 +1,19 @@
+
+import os
 import pandas as pd
 import requests
+import numpy as np
 from io import BytesIO
+from sentence_transformers import SentenceTransformer
 from app.models.schemas import SyncResponse
 from app.state.cache import synced_urls, sheet_cache, embedding_cache
-from sentence_transformers import SentenceTransformer
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 def sync_sheet(sheet_url: str) -> SyncResponse:
     sheet_url = str(sheet_url)
 
-    # Clear previous cache to reduce memory usage
+    # Clear old cache to save memory
     synced_urls.clear()
     sheet_cache.clear()
     embedding_cache.clear()
@@ -32,13 +35,18 @@ def sync_sheet(sheet_url: str) -> SyncResponse:
             response.raise_for_status()
             df = pd.read_excel(BytesIO(response.content), engine="openpyxl", usecols=["Question", "Answer"])
 
-        # Cache sheet and embeddings separately
-        question_embeddings = embedder.encode(df["Question"].tolist(), convert_to_tensor=True)
+        # Truncate if too large
+        if len(df) > 5000:
+            df = df.iloc[:5000]
+
+        # Generate embeddings as NumPy arrays
+        embeddings = embedder.encode(df["Question"].tolist(), convert_to_numpy=True)
+
+        # Cache both DataFrame and embeddings
         sheet_cache[sheet_url] = df
-        embedding_cache[sheet_url] = question_embeddings
+        embedding_cache[sheet_url] = embeddings
         synced_urls.add(sheet_url)
 
         return SyncResponse(columns=df.columns.tolist(), row_count=len(df))
-
     except Exception as e:
         raise ValueError(f"Failed to load sheet: {e}")
