@@ -31,6 +31,8 @@ def cosine_similarity(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
+    sheet_url = str(sheet_url)
+    sheet_url = sheet_url.split("?")[0].strip()
     print(f"🔍 Processing query for: {sheet_url}")
     
     if sheet_url not in synced_urls:
