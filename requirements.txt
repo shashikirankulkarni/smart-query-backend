@@ -6,4 +6,3 @@ openpyxl
 requests
 python-multipart
 google-analytics-data
-numpy

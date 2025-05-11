@@ -2,16 +2,12 @@ import pandas as pd
 import requests
 from io import BytesIO
 from app.models.schemas import SyncResponse
-from app.state.cache import synced_urls, sheet_cache, embedding_cache
+from app.state.cache import synced_urls, sheet_cache
 
 def sync_sheet(sheet_url: str) -> SyncResponse:
-    sheet_url = str(sheet_url)
     sheet_url = sheet_url.split("?")[0].strip()
-    print(f"✅ Syncing sheet: {sheet_url}")
-
     synced_urls.clear()
     sheet_cache.clear()
-    embedding_cache.clear()
 
     try:
         if "docs.google.com/spreadsheets" in sheet_url:
