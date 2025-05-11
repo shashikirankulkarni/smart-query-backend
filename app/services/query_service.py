@@ -16,9 +16,12 @@ def query_similarity_api(query: str, questions: list[str]) -> list[float]:
             "sentences": questions
         }
     }
-    response = requests.post(HF_API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()
+    try:
+        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Sorry, did not catch that. Please try again.")
 
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
     sheet_url = str(sheet_url).split("?")[0].strip()
