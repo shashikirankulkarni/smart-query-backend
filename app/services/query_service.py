@@ -5,7 +5,7 @@ import traceback
 from app.state.cache import synced_urls, sheet_cache
 import cohere
 
-HF_API_URL = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
+HF_API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
