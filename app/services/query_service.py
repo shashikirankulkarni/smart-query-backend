@@ -13,9 +13,17 @@ def get_embeddings_from_huggingface(sentences):
     headers = {
         "Authorization": f"Bearer {HF_API_TOKEN}"
     }
-    response = requests.post(HF_API_URL, headers=headers, json={"inputs": sentences})
-    response.raise_for_status()
-    return response.json()
+    try:
+        print(f"📡 Requesting HuggingFace embeddings for {len(sentences)} sentences")
+        response = requests.post(HF_API_URL, headers=headers, json={"inputs": sentences})
+        response.raise_for_status()
+        data = response.json()
+        print("✅ Embeddings received successfully")
+        return data
+    except requests.exceptions.RequestException as e:
+        print(f"❌ HuggingFace API error: {e}")
+        print("🔴 Response text:", response.text)
+        raise
 
 def cosine_similarity(a, b):
     import numpy as np
@@ -23,28 +31,18 @@ def cosine_similarity(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
-    sheet_url = sheet_url.split("?")[0].strip()
-    print(f"🔍 Received query for sheet: {sheet_url} | Question: {user_question}")
+    print(f"🔍 Processing query for: {sheet_url}")
+    
+    if sheet_url not in synced_urls:
+        raise ValueError("Sheet not synced. Please sync the file before querying.")
+
+    df = sheet_cache.get(sheet_url)
+    if df is None or not {'Question', 'Answer'}.issubset(df.columns):
+        raise ValueError("Sheet must contain 'Question' and 'Answer' columns.")
 
     try:
-        if sheet_url not in synced_urls:
-            print("❌ Sheet not synced!")
-            raise ValueError("Sheet not synced. Please sync the file before querying.")
-
-        df = sheet_cache.get(sheet_url)
-        if df is None:
-            print("❌ No cached DataFrame found for this URL.")
-            raise ValueError("Cached sheet not found.")
-
-        if not {'Question', 'Answer'}.issubset(df.columns):
-            print(f"❌ Invalid sheet structure. Columns found: {df.columns.tolist()}")
-            raise ValueError("Sheet must contain 'Question' and 'Answer' columns.")
-
         question_texts = df["Question"].fillna("").tolist()
-        print("✅ Fetching question embeddings...")
         question_embeddings = get_embeddings_from_huggingface(question_texts)
-
-        print("✅ Fetching query embedding...")
         query_embedding = get_embeddings_from_huggingface([user_question])[0]
 
         scored = [
@@ -58,7 +56,6 @@ def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
             for i, (idx, _) in enumerate(top_indices)
         ]
 
-        print("💬 Calling Cohere API...")
         response = co.chat(
             model="command-r",
             message=user_question,
@@ -66,10 +63,8 @@ def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
             preamble="You are a helpful assistant. Answer ONLY based on the following Q&A pairs. If unsure, say 'I don't know.'",
             temperature=0.3
         )
-        print("✅ Response from Cohere received.")
         return response.text.strip()
-
+    
     except Exception as e:
-        print("🚨 Exception in process_query:")
-        traceback.print_exc()
-        raise e
+        print(f"❌ Error during embedding or cohere response: {e}")
+        raise

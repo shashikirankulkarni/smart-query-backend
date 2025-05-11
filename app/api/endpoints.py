@@ -23,12 +23,15 @@ def health_check():
 @router.post("/query", response_model=QueryResponse, dependencies=[Depends(verify_token)])
 def query_sheet(data: QueryRequest):
     try:
+        print(f"📥 Received query for sheet: {data.sheet_url} | Question: {data.question}")
         answer = process_query(data.sheet_url, data.question)
         return QueryResponse(answer=answer)
     except ValueError as ve:
+        print(f"❌ ValueError in query: {ve}")
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Server error: " + str(e))
+        print(f"🔥 Internal Server Error in query: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
     
 @router.post("/sync", response_model=SyncResponse, dependencies=[Depends(verify_token)])
 def sync_sheet_data(data: SyncRequest):
