@@ -1,48 +1,54 @@
 import os
 import pandas as pd
-from sentence_transformers import SentenceTransformer, util
-from app.utils.sheet_loader import load_sheet_from_url
-from app.state.cache import synced_urls
+import requests
+from app.state.cache import synced_urls, sheet_cache
 import cohere
 
-# Initialize embedding model + Cohere client
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+HF_API_URL = "https://api-inference.huggingface.co/embeddings/sentence-transformers/all-MiniLM-L6-v2"
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 co = cohere.Client(os.getenv("COHERE_API_KEY"))
 
+def get_embeddings_from_huggingface(sentences):
+    headers = {
+        "Authorization": f"Bearer {HF_API_TOKEN}"
+    }
+    response = requests.post(HF_API_URL, headers=headers, json={"inputs": sentences})
+    response.raise_for_status()
+    return response.json()
+
+def cosine_similarity(a, b):
+    import numpy as np
+    a, b = np.array(a), np.array(b)
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
-    sheet_url = str(sheet_url)
-    #Reject if sheet is not synced
     if sheet_url not in synced_urls:
         raise ValueError("Sheet not synced. Please sync the file before querying.")
 
-    df = load_sheet_from_url(str(sheet_url))
-    if not {'Question', 'Answer'}.issubset(df.columns):
+    df = sheet_cache.get(sheet_url)
+    if df is None or not {'Question', 'Answer'}.issubset(df.columns):
         raise ValueError("Sheet must contain 'Question' and 'Answer' columns.")
 
-    # 2. Embed and search
-    question_embeddings = embedder.encode(df['Question'].tolist(), convert_to_tensor=True)
-    query_embedding = embedder.encode([user_question], convert_to_tensor=True)
-    results = util.semantic_search(query_embedding, question_embeddings, top_k=top_k)
-    top_indices = [hit['corpus_id'] for hit in results[0]]
-    context_df = df.iloc[top_indices]
+    question_texts = df["Question"].fillna("").tolist()
+    question_embeddings = get_embeddings_from_huggingface(question_texts)
+    query_embedding = get_embeddings_from_huggingface([user_question])[0]
 
-    # 3. Format context
+    scored = [
+        (i, cosine_similarity(query_embedding, emb))
+        for i, emb in enumerate(question_embeddings)
+    ]
+    top_indices = sorted(scored, key=lambda x: x[1], reverse=True)[:top_k]
+
     documents = [
-        {"title": f"Q{i+1}", "snippet": f"Q: {q}\nA: {a}"}
-        for i, (q, a) in enumerate(zip(context_df['Question'], context_df['Answer']))
-        if pd.notna(q) and pd.notna(a)
+        {"title": f"Q{i+1}", "snippet": f"Q: {df.iloc[idx]['Question']}\nA: {df.iloc[idx]['Answer']}"}
+        for i, (idx, _) in enumerate(top_indices)
     ]
 
-    # 4. Call Cohere chat API
-    preamble = (
-        "You are a helpful assistant. Answer ONLY based on the following Q&A pairs. "
-        "If the answer is not available in this data, say: 'I don't know.'"
-    )
     response = co.chat(
         model="command-r",
         message=user_question,
         documents=documents,
-        preamble=preamble,
+        preamble="You are a helpful assistant. Answer ONLY based on the following Q&A pairs. If unsure, say 'I don't know.'",
         temperature=0.3
     )
     return response.text.strip()

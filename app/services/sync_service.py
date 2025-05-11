@@ -2,10 +2,15 @@ import pandas as pd
 import requests
 from io import BytesIO
 from app.models.schemas import SyncResponse
-from app.state.cache import synced_urls
+from app.state.cache import synced_urls, sheet_cache, embedding_cache
 
-def sync_sheet(sheet_url) -> SyncResponse:
+def sync_sheet(sheet_url: str) -> SyncResponse:
     sheet_url = str(sheet_url)
+
+    synced_urls.clear()
+    sheet_cache.clear()
+    embedding_cache.clear()
+
     try:
         if "docs.google.com/spreadsheets" in sheet_url:
             file_id = sheet_url.split("/d/")[1].split("/")[0]
@@ -23,8 +28,8 @@ def sync_sheet(sheet_url) -> SyncResponse:
             response.raise_for_status()
             df = pd.read_excel(BytesIO(response.content), engine="openpyxl")
 
-        #Cache the synced URL
         synced_urls.add(sheet_url)
+        sheet_cache[sheet_url] = df
 
         return SyncResponse(columns=df.columns.tolist(), row_count=len(df))
 

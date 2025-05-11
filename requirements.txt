@@ -1,9 +1,9 @@
 fastapi
 uvicorn
 cohere
-sentence-transformers
 pandas
 openpyxl
 requests
 python-multipart
 google-analytics-data
+numpy
