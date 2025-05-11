@@ -5,7 +5,7 @@ from app.models.schemas import SyncResponse
 from app.state.cache import synced_urls, sheet_cache
 
 def sync_sheet(sheet_url: str) -> SyncResponse:
-    sheet_url = sheet_url.split("?")[0].strip()
+    sheet_url = str(sheet_url).split("?")[0].strip()
     synced_urls.clear()
     sheet_cache.clear()
 

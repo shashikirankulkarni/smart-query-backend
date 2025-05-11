@@ -21,7 +21,7 @@ def query_similarity_api(query: str, questions: list[str]) -> list[float]:
     return response.json()
 
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
-    sheet_url = sheet_url.split("?")[0].strip()
+    sheet_url = str(sheet_url).split("?")[0].strip()
     if sheet_url not in synced_urls:
         raise ValueError("Sheet not synced. Please sync the file before querying.")
 
