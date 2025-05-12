@@ -17,11 +17,13 @@ def query_similarity_api(query: str, questions: list[str]) -> list[float]:
         }
     }
     try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=10)
+        response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=5)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.Timeout:
-        raise RuntimeError("Sorry, did not catch that. Please try again.")
+        raise ValueError("Sorry, I did not catch that. Please try again!")
+    except Exception as e:
+        raise RuntimeError(f"HuggingFace or CoHere error: {e}")
 
 def process_query(sheet_url: str, user_question: str, top_k: int = 3) -> str:
     sheet_url = str(sheet_url).split("?")[0].strip()
