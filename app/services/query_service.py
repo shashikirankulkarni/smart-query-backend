@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 from app.state.cache import synced_urls, sheet_cache
 import cohere
+import time
 
 HF_API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/sentence-similarity"
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
@@ -16,12 +17,15 @@ def query_similarity_api(query: str, questions: list[str]) -> list[float]:
             "sentences": questions
         }
     }
+    start = time.time()
     try:
         response = requests.post(HF_API_URL, headers=headers, json=payload, timeout=5)
         response.raise_for_status()
+        print(f"✅ HuggingFace responded in {time.time() - start:.2f}s")
         return response.json()
     except requests.exceptions.Timeout:
-        raise ValueError("Sorry, I did not catch that. Please try again!")
+        print(f"⏰ HuggingFace timed out after {time.time() - start:.2f}s")
+        raise RuntimeError("Sorry, I did not catch that. Please try again!")
     except Exception as e:
         raise RuntimeError(f"HuggingFace or CoHere error: {e}")
 
